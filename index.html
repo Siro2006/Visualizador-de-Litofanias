@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Valen - Visualizador Mágico de Litofanías</title>
+    <!-- Tailwind CSS para un diseño premium -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para íconos elegantes -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Three.js y OrbitControls para el renderizado 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f0f9ff;
+            background-image: radial-gradient(#e0f2fe 1px, transparent 1px);
+            background-size: 20px 20px;
+            /* Elimina el resaltado azul fantasma en celulares */
+            -webkit-tap-highlight-color: transparent; 
+        }
+        
+        /* Prohibir la selección de texto en la interfaz de control */
+        .no-select {
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-700 min-h-screen flex flex-col overflow-x-hidden">
+
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 px-6 py-4 border-b border-sky-100 shadow-sm no-select">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <img src="3D Valen logo.jpg" alt="3D Valen Logo" onerror="handleLogoError(this)" class="w-12 h-12 rounded-full border-2 border-sky-200 shadow-sm object-cover bg-white pointer-events-none">
+                <div>
+                    <h1 class="text-2xl font-extrabold tracking-tight text-sky-600">3D Valen</h1>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Regalos con magia</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <span class="text-xs bg-sky-50 px-3 py-1.5 rounded-full border border-sky-200 text-sky-700 flex items-center gap-1.5 font-bold shadow-sm">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    Simulador Interactivo - Todavía en desarrollo
+                </span>
+                <a href="https://instagram.com/3d_valen" target="_blank" class="text-sky-500 hover:text-sky-600 transition-colors text-sm flex items-center gap-1.5 font-bold bg-white px-3 py-1.5 rounded-full border border-sky-100 shadow-sm">
+                    <i class="fa-brands fa-instagram text-lg"></i> Hacé tu pedido por acá @3d_valen
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- COLUMNA IZQUIERDA: CONTROLES -->
+        <section class="lg:col-span-5 flex flex-col gap-6 bg-white border border-sky-100 rounded-3xl p-6 shadow-xl shadow-sky-100/50 relative z-20 no-select">
+            
+            <!-- PASO 1: SUBIR FOTO -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between pointer-events-none">
+                    <span class="text-xs font-bold uppercase tracking-wider text-sky-500 bg-sky-50 px-2 py-1 rounded-md">Paso 1</span>
+                    <span class="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">JPG / PNG</span>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">Subí tu foto favorita</h3>
+                
+                <label for="imageUpload" class="group relative flex flex-col items-center justify-center border-2 border-dashed border-sky-200 hover:border-sky-400 bg-sky-50/50 hover:bg-sky-50 rounded-2xl p-6 text-center cursor-pointer transition-all duration-300">
+                    <input type="file" id="imageUpload" accept="image/*" class="hidden">
+                    
+                    <div id="uploadPlaceholder" class="space-y-2 pointer-events-none">
+                        <div class="w-14 h-14 rounded-full bg-white group-hover:bg-sky-100 flex items-center justify-center mx-auto transition-all duration-300 shadow-sm border border-sky-100">
+                            <i class="fa-solid fa-cloud-arrow-up text-sky-400 group-hover:text-sky-500 text-xl transition-colors"></i>
+                        </div>
+                        <p class="text-sm font-bold text-slate-600 group-hover:text-sky-600 transition-colors">Tocá para elegir una foto</p>
+                        <p class="text-[11px] text-slate-400 font-medium">Fotos claras y de cerca dan mejores resultados</p>
+                    </div>
+
+                    <div id="imagePreviewContainer" class="hidden flex items-center gap-3 bg-white p-2.5 rounded-xl border border-sky-100 w-full mt-2 shadow-sm">
+                        <img id="imagePreview" src="" alt="Vista previa" class="w-12 h-12 object-cover rounded-lg border border-slate-100 pointer-events-none">
+                        <div class="text-left overflow-hidden flex-1 pointer-events-none">
+                            <p id="fileName" class="text-xs font-bold text-slate-700 truncate">imagen.jpg</p>
+                            <p class="text-[10px] font-semibold text-emerald-500"><i class="fa-solid fa-check-circle mr-1"></i>Foto subida</p>
+                        </div>
+                        <!-- IMPORTANTE: stopPropagation para que al borrar no se abra la carpeta de archivos -->
+                        <button type="button" id="removeImageBtn" class="p-2 text-slate-400 hover:text-rose-500 bg-slate-50 hover:bg-rose-50 rounded-lg transition-colors z-10 relative">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </label>
+            </div>
+
+            <div id="cropSection" class="hidden space-y-3 bg-slate-50 p-4 rounded-2xl border border-sky-100 shadow-sm relative mt-4">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-bold uppercase tracking-wider text-sky-500 bg-sky-100 px-2 py-1 rounded-md shadow-sm border border-sky-200">Encuadre</span>
+                    <button type="button" onclick="rotateImage(event)" class="text-[11px] font-bold text-slate-600 hover:text-sky-600 bg-white border border-slate-200 hover:border-sky-300 px-2.5 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5 transition-all active:scale-95">
+                        <i class="fa-solid fa-rotate-right"></i> Rotar 90°
+                    </button>
+                </div>
+                <h3 class="text-sm font-bold text-slate-800">Centrá lo más importante</h3>
+                <p class="text-[11px] text-slate-500 font-medium leading-relaxed">Arrastrá la foto para centrar lo más importante.</p>
+                
+                <div id="cropZoneContainer" class="w-full max-w-[220px] mx-auto aspect-square rounded-xl border-2 border-dashed border-sky-400 overflow-hidden relative cursor-move shadow-inner bg-slate-200 touch-none mt-2">
+                    <div id="cropZone" class="w-full h-full bg-no-repeat transition-none" style="background-size: cover; background-position: 50% 50%;"></div>
+                </div>
+            </div>
+
+            <hr class="border-sky-100 mt-6">
+
+            <div class="space-y-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-sky-500 bg-sky-50 px-2 py-1 rounded-md pointer-events-none">Paso 2</span>
+                <h3 class="text-lg font-bold text-slate-800">Elegí el formato del llavero</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button type="button" id="btnModelSquare" class="flex flex-col items-center justify-center p-4 rounded-2xl border-2 bg-sky-50 border-sky-500 text-sky-700 shadow-sm transition-all text-center gap-2 relative overflow-hidden group" onclick="changeModelType(event, 'square')">
+                        <div class="absolute inset-0 bg-sky-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                        <i class="fa-solid fa-square text-2xl pointer-events-none"></i>
+                        <span class="text-xs font-bold pointer-events-none">Cuadrado (6cmx6cm)</span>
+                    </button>
+                    <button type="button" id="btnModelCircle" class="flex flex-col items-center justify-center p-4 rounded-2xl border-2 bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all text-center gap-2 relative overflow-hidden group" onclick="changeModelType(event, 'circle')">
+                        <div class="absolute inset-0 bg-slate-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                        <i class="fa-solid fa-circle text-2xl pointer-events-none"></i>
+                        <span class="text-xs font-bold pointer-events-none">Circular (6cm)</span>
+                    </button>
+                </div>
+            </div>
+
+            <hr class="border-sky-100">
+
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-sky-500 bg-sky-50 px-2 py-1 rounded-md pointer-events-none">Paso 3</span>
+                    <span id="priceDisplay" class="text-sm font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-md transition-all border border-slate-200 shadow-inner pointer-events-none">$3500 ARS</span>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">Color del Borde</h3>
+                    <p class="text-[11px] text-slate-500 font-medium mb-3">Elegí el clásico o dale tu toque personal.</p>
+                    
+                    <div class="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <p class="text-xs font-bold text-slate-600 mb-2 pointer-events-none">Estándar (Incluido)</p>
+                        <button type="button" onclick="changeFrameColor(event, '#fdfbf7', 3500, this)" class="color-btn border-sky-500 ring-2 ring-sky-200 w-10 h-10 rounded-full shadow-sm transition-all flex items-center justify-center relative active:scale-95" style="background-color: #fdfbf7;" title="Piedra / Hueso (Base)">
+                            <div class="absolute inset-0 rounded-full border border-slate-200/50 pointer-events-none"></div>
+                        </button>
+                    </div>
+                    
+                    <div class="bg-amber-50/40 p-3 rounded-xl border border-amber-100">
+                        <p class="text-xs font-bold text-amber-600 mb-2 flex items-center gap-1.5 pointer-events-none"><i class="fa-solid fa-star text-amber-400"></i> Personalizados (+1000 ARS)</p>
+                        <div class="flex flex-wrap gap-2.5">
+                            <button type="button" onclick="changeFrameColor(event, '#ef4444', 4500, this)" class="color-btn border-slate-300 border-2 hover:scale-110 active:scale-95 w-8 h-8 rounded-full shadow-sm transition-all" style="background-color: #ef4444;" title="Rojo"></button>
+                            <button type="button" onclick="changeFrameColor(event, '#fbbf24', 4500, this)" class="color-btn border-slate-300 border-2 hover:scale-110 active:scale-95 w-8 h-8 rounded-full shadow-sm transition-all" style="background-color: #fbbf24;" title="Dorado"></button>
+                            <button type="button" onclick="changeFrameColor(event, '#6ee7b7', 4500, this)" class="color-btn border-slate-300 border-2 hover:scale-110 active:scale-95 w-8 h-8 rounded-full shadow-sm transition-all" style="background-color: #6ee7b7;" title="Menta"></button>
+                            <button type="button" onclick="changeFrameColor(event, '#7dd3fc', 4500, this)" class="color-btn border-slate-300 border-2 hover:scale-110 active:scale-95 w-8 h-8 rounded-full shadow-sm transition-all" style="background-color: #7dd3fc;" title="Celeste"></button>
+                            <button type="button" onclick="changeFrameColor(event, '#f9a8d4', 4500, this)" class="color-btn border-slate-300 border-2 hover:scale-110 active:scale-95 w-8 h-8 rounded-full shadow-sm transition-all" style="background-color: #f9a8d4;" title="Rosa"></button>
+                            <button type="button" onclick="changeFrameColor(event, '#a855f7', 4500, this)" class="color-btn border-slate-300 border-2 hover:scale-110 active:scale-95 w-8 h-8 rounded-full shadow-sm transition-all" style="background-color: #a855f7;" title="Violeta"></button>
+                            <button type="button" onclick="changeFrameColor(event, '#1f2937', 4500, this)" class="color-btn border-slate-300 border-2 hover:scale-110 active:scale-95 w-8 h-8 rounded-full shadow-sm transition-all" style="background-color: #1f2937;" title="Negro"></button>
+                            <button type="button" onclick="changeFrameColor(event, '#78350f', 4500, this)" class="color-btn border-slate-300 border-2 hover:scale-110 active:scale-95 w-8 h-8 rounded-full shadow-sm transition-all" style="background-color: #78350f;" title="Marrón"></button>
+                            <button type="button" onclick="changeFrameColor(event, '#3b82f6', 4500, this)" class="color-btn border-slate-300 border-2 hover:scale-110 active:scale-95 w-8 h-8 rounded-full shadow-sm transition-all" style="background-color: #3b82f6;" title="Azul"></button>
+                            <button type="button" onclick="changeFrameColor(event, '#f97316', 4500, this)" class="color-btn border-slate-300 border-2 hover:scale-110 active:scale-95 w-8 h-8 rounded-full shadow-sm transition-all" style="background-color: #f97316;" title="Naranja"></button>
+                            <button type="button" onclick="changeFrameColor(event, '#cbd5e1', 4500, this)" class="color-btn border-slate-300 border-2 hover:scale-110 active:scale-95 w-8 h-8 rounded-full shadow-sm transition-all" style="background-color: #cbd5e1;" title="Plateado"></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="border-sky-100">
+
+            <div class="space-y-4 bg-gradient-to-br from-amber-50 to-white p-5 rounded-2xl border border-amber-100 shadow-sm relative overflow-hidden">
+                <i class="fa-solid fa-sun absolute -right-4 -top-4 text-7xl text-amber-100 opacity-60 pointer-events-none"></i>
+                
+                <div class="space-y-3 relative z-10">
+                    <span class="text-xs font-bold uppercase tracking-wider text-amber-500 bg-white px-2 py-1 rounded-md shadow-sm border border-amber-50 pointer-events-none">Paso 4</span>
+                    
+                    <h3 class="text-lg font-bold text-slate-800 pointer-events-none">
+                        Revelar Imagen
+                    </h3>
+                    <p class="text-xs font-semibold text-slate-500 leading-relaxed pointer-events-none">
+                        Tocá el botón para simular cómo se revela tu foto al ponerlo frente a la luz.
+                    </p>
+
+                    <button type="button" id="lightToggleBtn" onclick="toggleLightBtn(event)" class="w-full mt-2 py-4 bg-slate-800 text-white rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-slate-700 transition-all shadow-md active:scale-95">
+                        <i id="lightIcon" class="fa-solid fa-lightbulb text-amber-400 text-lg pointer-events-none"></i>
+                        <span id="lightToggleText" class="text-lg pointer-events-none">Encender linterna</span>
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+        <section class="lg:col-span-7 flex flex-col bg-slate-900 border-4 border-white rounded-3xl relative min-h-[500px] lg:h-[calc(100vh-8rem)] lg:sticky lg:top-24 overflow-hidden shadow-2xl z-10 no-select">
+            
+            <!-- Fondo Parque/Naturaleza -->
+            <div class="absolute inset-0 bg-cover bg-center opacity-60 mix-blend-screen pointer-events-none" style="background-image: url('https://images.unsplash.com/photo-1543689487-738914c679b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'); filter: blur(4px);"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-800/60 to-slate-900/40 pointer-events-none"></div>
+            
+            <div class="absolute top-4 left-4 right-4 z-10 flex justify-end items-center pointer-events-none">
+                <div class="flex items-center gap-2 pointer-events-auto">
+                    <button type="button" id="btnAutoRotate" class="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white hover:text-sky-600 flex items-center justify-center transition-all shadow-lg active:scale-95" title="Girar automáticamente" onclick="toggleAutoRotate(event)">
+                        <i class="fa-solid fa-rotate text-sm pointer-events-none"></i>
+                    </button>
+                    <button type="button" class="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white hover:text-sky-600 flex items-center justify-center transition-all shadow-lg active:scale-95" title="Reiniciar Cámara" onclick="resetCamera(event)">
+                        <i class="fa-solid fa-arrows-to-eye text-sm pointer-events-none"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="canvas3d" class="w-full h-full flex-1 min-h-[400px] relative z-0 outline-none"></div>
+
+            <div class="absolute bottom-12 left-1/2 -translate-x-1/2 bg-slate-900/80 backdrop-blur-md border border-white/10 px-5 py-2.5 rounded-full text-center pointer-events-none shadow-xl z-10">
+                <p class="text-[11px] font-bold text-white flex items-center gap-2 tracking-wide">
+                    <i class="fa-solid fa-hand-pointer animate-bounce text-sky-400"></i>
+                    ARRASTRÁ, HACÉ ZOOM O GIRÁ
+                </p>
+            </div>
+
+            <!-- Disclaimer Previsualización -->
+            <div class="absolute bottom-3 left-0 right-0 text-center pointer-events-none z-10 px-4">
+                <p class="text-[10px] font-bold text-white tracking-wider uppercase drop-shadow-md bg-slate-900/60 inline-block px-4 py-1.5 rounded-full backdrop-blur-md border border-white/10">
+                    <i class="fa-solid fa-circle-info text-sky-400 mr-1"></i> Nota: El producto final puede diferir de la simulación.
+                </p>
+            </div>
+
+            <div id="loader" class="hidden absolute inset-0 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center gap-4 z-30 transition-all duration-300 rounded-2xl pointer-events-none">
+                <div class="w-14 h-14 rounded-full border-4 border-sky-100 border-t-sky-500 animate-spin shadow-lg"></div>
+                <div class="text-center">
+                    <p class="text-base font-extrabold text-sky-600">Calculando Relieves 3D...</p>
+                    <p class="text-xs font-semibold text-slate-500">Generando grosores de filamento</p>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-sky-200 bg-white py-6 px-6 mt-6 shadow-inner relative z-20 no-select">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-bold text-slate-400">
+            <p>© 2026 3D Valen. Regalos con magia.</p>
+            <p class="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                Diseñado con <i class="fa-solid fa-heart text-rose-400 animate-pulse"></i> por Ada.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Función inteligente para probar diferentes variaciones del nombre del archivo del logo en GitHub Pages (evita errores de mayúsculas/minúsculas o espacios)
+        function handleLogoError(img) {
+            const fallbacks = [
+                '3D%20Valen%20logo.jpg',
+                '3d%20valen%20logo.jpg',
+                '3D_Valen_logo.jpg',
+                '3d_valen_logo.jpg',
+                '3D Valen logo.png',
+                '3D_Valen_logo.png',
+                '3D%20Valen%20logo.JPG',
+                '3D_Valen_logo.JPG',
+                '3D_Valen_logo.jpeg',
+                '3D%20Valen%20logo.jpeg',
+                '3d_valen_logo.png'
+            ];
+            
+            if (!img.dataset.fallbackIndex) {
+                img.dataset.fallbackIndex = 0;
+            }
+            
+            let idx = parseInt(img.dataset.fallbackIndex);
+            if (idx < fallbacks.length) {
+                img.dataset.fallbackIndex = idx + 1;
+                img.src = fallbacks[idx];
+            } else {
+                // Última opción por si ningún archivo coincide: marcador de posición estético
+                img.onerror = null;
+                img.src = 'https://placehold.co/100x100/e0f2fe/0ea5e9?text=3D';
+            }
+        }
+
+        // Variables Globales
+        let scene, camera, renderer, controls;
+        let litophanyGroup, keychainGroup;
+        
+        const frameSize = 6.0;
+        const photoSize = 5.0; 
+        
+        const frameDepth = 0.3; // 3mm
+        const maxPhotoThickness = 0.28; // 2.8mm
+        const minPhotoThickness = 0.04; // 0.4mm
+        const holeRadius = 0.125; // 2.5mm
+
+        let frameColor = 0xfdfbf7; 
+        const litophanyColor = 0xfdfbf7; 
+        let isLightOn = false;
+        let backLight, frontLight, ambientLight, fillLight;
+        let activeModelType = 'square'; 
+
+        let currentDispTexture = null;
+        let currentEmisTexture = null;
+
+        // Variables Cropper y Rotación
+        let panPercentX = 50;
+        let panPercentY = 50;
+        let cropIsDragging = false;
+        let cropStartX, cropStartY, cropStartPanX, cropStartPanY;
+        
+        let originalImageObj = null; // Guarda la foto original subida
+        let uploadedImgObj = null;   // Guarda el canvas resultante (rotado)
+        let currentRotation = 0;     // Grados de rotación actuales (0, 90, 180, 270)
+        let processingCanvas = document.createElement('canvas'); // Canvas oculto para procesar rotación
+
+        window.onload = function() {
+            init3D();
+            setupEvents();
+            loadDefaultImage();
+            animate();
+        };
+
+        function init3D() {
+            const container = document.getElementById('canvas3d');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            scene = new THREE.Scene();
+            
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+            camera.position.set(0, 0, 7.5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.1;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxDistance = 15;
+            controls.minDistance = 2.5;
+
+            keychainGroup = new THREE.Group();
+            scene.add(keychainGroup);
+
+            setupLights();
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function setupLights() {
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
+            scene.add(ambientLight);
+
+            frontLight = new THREE.DirectionalLight(0xffffff, 0.7);
+            frontLight.position.set(3, 4, 5);
+            frontLight.castShadow = true;
+            scene.add(frontLight);
+
+            fillLight = new THREE.DirectionalLight(0xe0f2fe, 0.3);
+            fillLight.position.set(-3, -2, 4);
+            scene.add(fillLight);
+
+            backLight = new THREE.PointLight(0xffeeba, 0, 10); 
+            backLight.position.set(0, 0, -2.5);
+            scene.add(backLight);
+        }
+
+        function setupEvents() {
+            const uploadInput = document.getElementById('imageUpload');
+            const dropzone = uploadInput.parentElement;
+
+            uploadInput.addEventListener('change', function(e) {
+                if (e.target.files && e.target.files[0]) {
+                    processUploadedFile(e.target.files[0]);
+                }
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    dropzone.classList.add('border-sky-500', 'bg-sky-100/50');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    dropzone.classList.remove('border-sky-500', 'bg-sky-100/50');
+                }, false);
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files[0]) {
+                    uploadInput.files = files;
+                    processUploadedFile(files[0]);
+                }
+            });
+
+            document.getElementById('removeImageBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadInput.value = '';
+                document.getElementById('uploadPlaceholder').classList.remove('hidden');
+                document.getElementById('imagePreviewContainer').classList.add('hidden');
+                loadDefaultImage(); // Vuelve a cargar el logo
+            });
+        }
+
+        function processUploadedFile(file) {
+            document.getElementById('loader').classList.remove('hidden');
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    document.getElementById('uploadPlaceholder').classList.add('hidden');
+                    const previewContainer = document.getElementById('imagePreviewContainer');
+                    previewContainer.classList.remove('hidden');
+                    document.getElementById('imagePreview').src = event.target.result;
+                    document.getElementById('fileName').textContent = file.name;
+
+                    setupCropper(img);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function setupCropper(imgObj) {
+            originalImageObj = imgObj;
+            currentRotation = 0;
+            applyRotationToCanvas();
+        }
+
+        function rotateImage(e) {
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            currentRotation = (currentRotation + 90) % 360;
+            applyRotationToCanvas();
+        }
+
+        function applyRotationToCanvas() {
+            if(!originalImageObj) return;
+            const ctx = processingCanvas.getContext('2d');
+            
+            // Invertir ancho y alto si está girada 90 o 270 grados
+            if (currentRotation === 90 || currentRotation === 270) {
+                processingCanvas.width = originalImageObj.height;
+                processingCanvas.height = originalImageObj.width;
+            } else {
+                processingCanvas.width = originalImageObj.width;
+                processingCanvas.height = originalImageObj.height;
+            }
+            
+            ctx.save();
+            ctx.translate(processingCanvas.width / 2, processingCanvas.height / 2);
+            ctx.rotate(currentRotation * Math.PI / 180);
+            ctx.drawImage(originalImageObj, -originalImageObj.width / 2, -originalImageObj.height / 2);
+            ctx.restore();
+
+            const rotatedDataUrl = processingCanvas.toDataURL();
+            const cropZone = document.getElementById('cropZone');
+            
+            cropZone.style.backgroundImage = `url(${rotatedDataUrl})`;
+            panPercentX = 50; 
+            panPercentY = 50;
+            cropZone.style.backgroundPosition = `50% 50%`;
+
+            // Establecemos el canvas rotado como la imagen fuente para tallar
+            uploadedImgObj = processingCanvas;
+
+            document.getElementById('cropSection').classList.remove('hidden');
+            
+            if(!cropZone.dataset.eventsAttached) {
+                cropZone.addEventListener('mousedown', onCropStart);
+                cropZone.addEventListener('touchstart', onCropStart, {passive: false});
+                window.addEventListener('mousemove', onCropMove);
+                window.addEventListener('touchmove', onCropMove, {passive: false});
+                window.addEventListener('mouseup', onCropEnd);
+                window.addEventListener('touchend', onCropEnd);
+                cropZone.dataset.eventsAttached = 'true';
+            }
+            
+            document.getElementById('loader').classList.remove('hidden');
+            setTimeout(() => {
+                generateLitophanyTextures(uploadedImgObj);
+            }, 50);
+        }
+
+        function onCropStart(e) {
+            cropIsDragging = true;
+            cropStartX = e.touches ? e.touches[0].clientX : e.clientX;
+            cropStartY = e.touches ? e.touches[0].clientY : e.clientY;
+            cropStartPanX = panPercentX;
+            cropStartPanY = panPercentY;
+        }
+
+        function onCropMove(e) {
+            if (!cropIsDragging) return;
+            if (e.touches) e.preventDefault(); 
+            
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const dx = clientX - cropStartX;
+            const dy = clientY - cropStartY;
+            
+            const cropZoneContainer = document.getElementById('cropZoneContainer');
+            const rect = cropZoneContainer.getBoundingClientRect();
+            
+            const imgAspect = uploadedImgObj.width / uploadedImgObj.height;
+            
+            if (imgAspect > 1) { 
+                const extraWidth = rect.height * imgAspect - rect.width;
+                if(extraWidth > 0) {
+                    const percentDelta = -(dx / extraWidth) * 100;
+                    panPercentX = Math.max(0, Math.min(100, cropStartPanX + percentDelta));
+                }
+            } else { 
+                const extraHeight = rect.width / imgAspect - rect.height;
+                if(extraHeight > 0) {
+                    const percentDelta = -(dy / extraHeight) * 100;
+                    panPercentY = Math.max(0, Math.min(100, cropStartPanY + percentDelta));
+                }
+            }
+            
+            document.getElementById('cropZone').style.backgroundPosition = `${panPercentX}% ${panPercentY}%`;
+        }
+
+        function onCropEnd() {
+            if(!cropIsDragging) return;
+            cropIsDragging = false;
+            document.getElementById('loader').classList.remove('hidden');
+            setTimeout(() => {
+                generateLitophanyTextures(uploadedImgObj);
+            }, 50);
+        }
+
+        function loadDefaultImage() {
+            document.getElementById('loader').classList.remove('hidden');
+            document.getElementById('cropSection').classList.add('hidden'); // Ocultar UI de recorte para la foto por defecto
+            
+            panPercentX = 50; 
+            panPercentY = 50;
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            const gradient = ctx.createRadialGradient(256, 256, 50, 256, 256, 256);
+            gradient.addColorStop(0, '#fff4d6');
+            gradient.addColorStop(1, '#664010');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 512, 512);
+
+            ctx.fillStyle = '#050402'; 
+            ctx.beginPath(); ctx.ellipse(256, 520, 260, 100, 0, 0, Math.PI * 2); ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(256, 360, 40, 0, Math.PI * 2); ctx.fill();
+
+            ctx.fillStyle = '#0a0805';
+            ctx.beginPath(); ctx.arc(200, 360, 15, 0, Math.PI*2); ctx.fill();
+            ctx.fillRect(188, 375, 24, 60); 
+            ctx.beginPath(); ctx.arc(250, 350, 14, 0, Math.PI*2); ctx.fill();
+            ctx.fillRect(238, 364, 24, 70); 
+            ctx.beginPath(); ctx.arc(295, 390, 10, 0, Math.PI*2); ctx.fill();
+            ctx.fillRect(288, 400, 14, 35); 
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 42px "Nunito", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('3D VALEN', 256, 110);
+            ctx.font = 'italic 20px "Nunito", sans-serif';
+            ctx.fillText('Regalos con magia', 256, 145);
+
+            const img = new Image();
+            img.onload = function() {
+                uploadedImgObj = img;
+                generateLitophanyTextures(img);
+            };
+            img.src = canvas.toDataURL();
+        }
+
+        function generateLitophanyTextures(img) {
+            if(!img) return;
+
+            const size = 512;
+            const canvasDisp = document.createElement('canvas');
+            canvasDisp.width = size;
+            canvasDisp.height = size;
+            const ctxDisp = canvasDisp.getContext('2d');
+
+            const canvasEmis = document.createElement('canvas');
+            canvasEmis.width = size;
+            canvasEmis.height = size;
+            const ctxEmis = canvasEmis.getContext('2d');
+
+            let renderWidth = size;
+            let renderHeight = size;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            const imgAspect = img.width / img.height;
+            if (imgAspect > 1) { 
+                renderWidth = size * imgAspect;
+                const extra = renderWidth - size;
+                offsetX = -(panPercentX / 100) * extra;
+            } else { 
+                renderHeight = size / imgAspect;
+                const extra = renderHeight - size;
+                offsetY = -(panPercentY / 100) * extra;
+            }
+
+            ctxDisp.fillStyle = '#ffffff';
+            ctxDisp.fillRect(0,0,size,size);
+            ctxDisp.drawImage(img, offsetX, offsetY, renderWidth, renderHeight);
+            
+            const imgData = ctxDisp.getImageData(0, 0, size, size);
+            const data = imgData.data;
+
+            const imgDataEmis = ctxEmis.createImageData(size, size);
+            const dataEmis = imgDataEmis.data;
+
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i]; const g = data[i+1]; const b = data[i+2];
+                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+                const disp = 255 - gray;
+                data[i] = disp; data[i+1] = disp; data[i+2] = disp;
+
+                let emis = gray * 1.35;
+                if (emis > 255) emis = 255;
+                dataEmis[i] = emis;
+                dataEmis[i+1] = emis * 0.94; 
+                dataEmis[i+2] = emis * 0.82; 
+                dataEmis[i+3] = 255;
+            }
+
+            ctxDisp.putImageData(imgData, 0, 0);
+            ctxEmis.putImageData(imgDataEmis, 0, 0);
+
+            currentDispTexture = new THREE.CanvasTexture(canvasDisp);
+            currentEmisTexture = new THREE.CanvasTexture(canvasEmis);
+
+            buildModel();
+        }
+
+        function buildModel() {
+            while(keychainGroup.children.length > 0){ 
+                const obj = keychainGroup.children[0];
+                keychainGroup.remove(obj); 
+            }
+
+            litophanyGroup = new THREE.Group();
+
+            let frameGeo, litoGeo, flatBackGeo;
+            const holeY = (frameSize / 2) - 0.35; 
+
+            if (activeModelType === 'square') {
+                const shape = new THREE.Shape();
+                const half = frameSize / 2;
+                shape.moveTo(-half, -half);
+                shape.lineTo(half, -half);
+                shape.lineTo(half, half);
+                shape.lineTo(-half, half);
+                shape.lineTo(-half, -half);
+
+                const innerHalf = photoSize / 2;
+                const holePath = new THREE.Path();
+                holePath.moveTo(-innerHalf, -innerHalf);
+                holePath.lineTo(-innerHalf, innerHalf);
+                holePath.lineTo(innerHalf, innerHalf);
+                holePath.lineTo(innerHalf, -innerHalf);
+                holePath.lineTo(-innerHalf, -innerHalf);
+                shape.holes.push(holePath);
+
+                const keychainHole = new THREE.Path();
+                keychainHole.absarc(0, holeY, holeRadius, 0, Math.PI * 2, true);
+                shape.holes.push(keychainHole);
+
+                frameGeo = new THREE.ExtrudeGeometry(shape, { depth: frameDepth, bevelEnabled: false });
+                
+                litoGeo = new THREE.PlaneGeometry(photoSize, photoSize, 256, 256);
+                flatBackGeo = new THREE.PlaneGeometry(photoSize, photoSize);
+
+            } else {
+                const shape = new THREE.Shape();
+                shape.absarc(0, 0, frameSize / 2, 0, Math.PI * 2, false);
+
+                const holePath = new THREE.Path();
+                holePath.absarc(0, 0, photoSize / 2, 0, Math.PI * 2, true);
+                shape.holes.push(holePath);
+
+                const keychainHole = new THREE.Path();
+                keychainHole.absarc(0, holeY, holeRadius, 0, Math.PI * 2, true);
+                shape.holes.push(keychainHole);
+
+                frameGeo = new THREE.ExtrudeGeometry(shape, { depth: frameDepth, bevelEnabled: false, curveSegments: 64 });
+                
+                litoGeo = new THREE.CircleGeometry(photoSize / 2, 256);
+                flatBackGeo = new THREE.CircleGeometry(photoSize / 2, 64);
+            }
+
+            // Material Relieve 3D (Cara Frontal)
+            const materialFront = new THREE.MeshStandardMaterial({
+                color: litophanyColor,
+                roughness: 0.45,
+                metalness: 0.05,
+                displacementMap: currentDispTexture,
+                displacementScale: maxPhotoThickness - minPhotoThickness, 
+                displacementBias: minPhotoThickness, 
+                emissiveMap: currentEmisTexture,
+                emissive: new THREE.Color(0xffd580),
+                emissiveIntensity: isLightOn ? 1.8 : 0.0
+            });
+
+            const litophanyMesh = new THREE.Mesh(litoGeo, materialFront);
+            litophanyMesh.castShadow = true;
+            litophanyMesh.receiveShadow = true;
+            litophanyMesh.position.z = 0; 
+            litophanyGroup.add(litophanyMesh);
+
+            // Material Base Cama de Impresión (Cara Trasera plana 0.4mm)
+            const materialBack = new THREE.MeshStandardMaterial({
+                color: litophanyColor,
+                roughness: 0.6,
+                metalness: 0.05
+            });
+            const backMesh = new THREE.Mesh(flatBackGeo, materialBack);
+            backMesh.rotation.y = Math.PI; 
+            backMesh.position.z = 0; 
+            litophanyGroup.add(backMesh);
+
+            keychainGroup.add(litophanyGroup);
+
+            // Material Marco Plástico
+            const frameMat = new THREE.MeshStandardMaterial({
+                color: frameColor,
+                roughness: 0.5,
+                metalness: 0.05
+            });
+
+            const frameMesh = new THREE.Mesh(frameGeo, frameMat);
+            frameMesh.castShadow = true;
+            frameMesh.receiveShadow = true;
+            frameMesh.userData.isFrameComponent = true; 
+            keychainGroup.add(frameMesh);
+
+            // Argolla Simple Plateada (Centrada matemáticamente)
+            const ringRadius = 0.25;
+            const ringTube = 0.03;
+            const ringGeo = new THREE.TorusGeometry(ringRadius, ringTube, 16, 32);
+            const ringMat = new THREE.MeshStandardMaterial({
+                color: 0xcccccc, 
+                metalness: 0.9,
+                roughness: 0.2
+            });
+
+            const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+            ringMesh.position.set(0, holeY + ringRadius, frameDepth / 2);
+            ringMesh.rotation.y = Math.PI / 2; 
+            
+            keychainGroup.add(ringMesh);
+
+            controls.target.set(0, frameSize/4, 0);
+            camera.position.set(0, frameSize/4, 8);
+
+            setTimeout(() => {
+                document.getElementById('loader').classList.add('hidden');
+            }, 300);
+        }
+
+        function changeModelType(e, type) {
+            // BLOQUEO ABSOLUTO DE COMPORTAMIENTOS POR DEFECTO PARA EVITAR BUGS DE RECARGA
+            if(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            if (activeModelType === type) return; 
+            
+            activeModelType = type;
+            const btnSq = document.getElementById('btnModelSquare');
+            const btnCir = document.getElementById('btnModelCircle');
+
+            btnSq.className = "flex flex-col items-center justify-center p-4 rounded-2xl border-2 bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all text-center gap-2 relative overflow-hidden group";
+            btnCir.className = "flex flex-col items-center justify-center p-4 rounded-2xl border-2 bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all text-center gap-2 relative overflow-hidden group";
+
+            if (type === 'square') {
+                btnSq.className = "flex flex-col items-center justify-center p-4 rounded-2xl border-2 bg-sky-50 border-sky-500 text-sky-700 shadow-sm transition-all text-center gap-2 relative overflow-hidden group";
+            } else {
+                btnCir.className = "flex flex-col items-center justify-center p-4 rounded-2xl border-2 bg-sky-50 border-sky-500 text-sky-700 shadow-sm transition-all text-center gap-2 relative overflow-hidden group";
+            }
+
+            document.getElementById('loader').classList.remove('hidden');
+            setTimeout(() => buildModel(), 50);
+        }
+
+        function changeFrameColor(e, hex, price, btn) {
+            // BLOQUEO ABSOLUTO
+            if(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            frameColor = parseInt(hex.replace('#', '0x'));
+
+            const priceDisplay = document.getElementById('priceDisplay');
+            priceDisplay.textContent = `$${price} ARS`;
+            if(price === 3500) {
+                priceDisplay.className = "text-sm font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-md transition-all border border-slate-200 shadow-inner pointer-events-none";
+            } else {
+                priceDisplay.className = "text-sm font-bold text-sky-700 bg-sky-100 px-3 py-1 rounded-md transition-all border border-sky-300 shadow-sm pointer-events-none";
+            }
+
+            document.querySelectorAll('.color-btn').forEach(b => {
+                b.classList.remove('border-sky-500', 'ring-2', 'ring-sky-200');
+                b.classList.add('border-slate-300', 'border-2'); 
+            });
+            btn.classList.remove('border-slate-300');
+            btn.classList.add('border-sky-500', 'ring-2', 'ring-sky-200');
+
+            if (keychainGroup) {
+                keychainGroup.traverse((child) => {
+                    if (child.isMesh && child.userData.isFrameComponent) {
+                        child.material.color.setHex(frameColor);
+                    }
+                });
+            }
+        }
+
+        function toggleLightBtn(e) {
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            
+            isLightOn = !isLightOn;
+            const btnText = document.getElementById('lightToggleText');
+            const icon = document.getElementById('lightIcon');
+            const btn = document.getElementById('lightToggleBtn');
+            
+            if (isLightOn) {
+                btnText.textContent = "Apagar Linterna";
+                btn.classList.remove('bg-slate-800', 'hover:bg-slate-700', 'text-white');
+                btn.classList.add('bg-amber-400', 'hover:bg-amber-500', 'text-slate-900');
+                icon.classList.remove('text-amber-400');
+                icon.classList.add('text-slate-900');
+            } else {
+                btnText.textContent = "Encender Linterna";
+                btn.classList.remove('bg-amber-400', 'hover:bg-amber-500', 'text-slate-900');
+                btn.classList.add('bg-slate-800', 'hover:bg-slate-700', 'text-white');
+                icon.classList.remove('text-slate-900');
+                icon.classList.add('text-amber-400');
+            }
+            
+            toggleBacklight(isLightOn);
+        }
+
+        function toggleBacklight(enabled) {
+            isLightOn = enabled;
+            if (litophanyGroup && litophanyGroup.children[0].material) {
+                if (enabled) {
+                    backLight.intensity = 2.5;
+                    ambientLight.intensity = 0.2;
+                    frontLight.intensity = 0.15;
+                    fillLight.intensity = 0.1;
+                } else {
+                    backLight.intensity = 0;
+                    ambientLight.intensity = 0.45;
+                    frontLight.intensity = 0.7;
+                    fillLight.intensity = 0.3;
+                }
+            }
+        }
+
+        let autoRotate = false;
+        function toggleAutoRotate(e) {
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            autoRotate = !autoRotate;
+            const btn = document.getElementById('btnAutoRotate');
+            if (autoRotate) {
+                btn.className = "w-10 h-10 rounded-full bg-sky-500 border border-sky-400 text-white flex items-center justify-center transition-all shadow-lg scale-105";
+            } else {
+                btn.className = "w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white hover:text-sky-600 flex items-center justify-center transition-all shadow-lg";
+            }
+        }
+
+        function resetCamera(e) {
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            camera.position.set(0, frameSize/4, 8);
+            controls.target.set(0, frameSize/4, 0);
+            keychainGroup.rotation.set(0, 0, 0);
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas3d');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (litophanyGroup && litophanyGroup.children[0] && litophanyGroup.children[0].material) {
+                const targetEmissive = isLightOn ? 1.8 : 0.0;
+                litophanyGroup.children[0].material.emissiveIntensity += (targetEmissive - litophanyGroup.children[0].material.emissiveIntensity) * 0.12;
+            }
+
+            if (autoRotate && keychainGroup) {
+                keychainGroup.rotation.y += 0.01;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
